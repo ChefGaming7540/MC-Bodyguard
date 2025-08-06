@@ -1,8 +1,8 @@
 const { fork } = require('child_process');
 const readline = require("readline");
 
-const hostName = "localhost";
-const hostPort = 12345;
+const hostName = "ChefsKitchen.aternos.me";
+const hostPort = 61563;
 
 const bots = [];
 const botsByName = {};
@@ -34,7 +34,7 @@ function spawnBot(botName) {
 
 async function spawnBots(amount=1) {
 	for (let i = 0; i < amount; i++) {
-		spawnBot(`guard_${bots.length}`);
+		spawnBot(`NamelessKnight`);
 
 		await sleep(spawnDelay);
 	}
@@ -45,9 +45,21 @@ const COMMAND_FUNCTIONS = {
 		console.log("pong");
 	},
 
-	"spawn": (amount)=>{
-		spawnBots(Number(amount));
-	},
+	"spawn": (...args) => {
+	if (args.length === 1 && !isNaN(args[0])) {
+		// e.g., spawn 3
+		spawnBots(Number(args[0]));
+	} else {
+		// e.g., spawn bot1 bot2 bot3
+		for (const customName of args) {
+			if (botsByName[customName]) {
+				console.log(`Bot "${customName}" already exists.`);
+				continue;
+			}
+			spawnBot(customName);
+		}
+	}
+},
 };
 
 function runCommand(command) {
