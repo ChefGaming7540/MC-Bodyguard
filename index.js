@@ -109,9 +109,9 @@ const COMMANDS = {
     console.log('Active bots:', [...bots.keys()].join(', ') || '(none)');
   },
   kill(botName) {
-	if (!botName) return logError('Usage: kill <botName>');
-	stopBot(botName);
-  }
+  if (!botName) return logError('Usage: kill <botName>');
+  stopBot(botName);
+  },
   help() {
     console.log(`Available commands:
     spawn [n|name1 name2 ...] - Spawn bots
@@ -120,7 +120,7 @@ const COMMANDS = {
     @botName <command>       - Send command to bot
     ping                     - Test manager responsiveness
     help                     - Show this message
-	@botname kill            - Kills the bot`);
+  @botname kill            - Kills the bot`);
   }
 };
 
