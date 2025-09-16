@@ -1,33 +1,33 @@
 /**
- * bot.js - Mineflayer Guard Bot (Rewritten)
+ * bot.js - Mineflayer Guard Bot
  * Features:
  *  - Guard a specified player, follow them, attack threats
  *  - Auto-equip best weapon and armor
  *  - Use melee or archery depending on situation
  *  - Auto-eat when hunger drops
  *  - Command system via parent process, chat, or whisper
- *  - Publicly announce who they are following
+ *  - Picks a random online boss to follow on spawn
  */
 
 const mineflayer = require('mineflayer');
 const fs = require('fs');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
 
+// === PLUGINS ===
 const attachMelee = require('./melee.js');
 const archeryPlugin = require('./archery.js');
 const armorPlugin = require('./armor.js');
 
-// CONFIG
+// === CONFIG ===
 if (process.argv.length < 5) process.exit();
 const [botName, hostName, hostPort] = process.argv.slice(2);
 
 const HUNGER_LIMIT = 15;
 const LINE_BREAKS = /\r?\n/g;
-
 const bossList = fs.readFileSync('boss-list.txt', 'utf8').split(LINE_BREAKS).filter(Boolean);
 const targetList = fs.readFileSync('target-list.txt', 'utf8').split(LINE_BREAKS).filter(Boolean);
 
-// BOT CREATION
+// === BOT CREATION ===
 const bot = mineflayer.createBot({
   username: botName,
   host: hostName,
@@ -38,60 +38,50 @@ const bot = mineflayer.createBot({
 bot.on('kicked', console.log);
 bot.on('error', console.log);
 
-// PLUGIN LOADING
+// === PLUGIN LOADING ===
 bot.loadPlugin(pathfinder);
-attachMelee(bot);
+attachMelee(bot, { debug: false, range: 10 });
 bot.loadPlugin(archeryPlugin);
 bot.loadPlugin(armorPlugin);
 
-// STATE
+// === STATE ===
 let guardedPlayer = null;
 let guarding = true;
 let isEating = false;
 let defaultMove;
 
-// HELPER FUNCTIONS
-bot.getEntity = (name) =>
-  bot.nearestEntity(e => e.username === name || e.displayName === name);
+// === HELPERS ===
+bot.getEntity = (name) => bot.nearestEntity(
+  (e) => e.displayName === name || e.username === name
+);
 
 function sendMessage(text) {
   process.send?.({ type: 'message', text });
 }
 
-// Announce who bot is following
-function broadcastFollow() {
-  if (guardedPlayer?.username) {
-    sendMessage(`👀 Following: ${guardedPlayer.username}`);
-  } else {
-    sendMessage(`👀 Not following anyone`);
-  }
-}
-
-// FIND THREATS & ATTACKERS
+// Find nearby hostile mobs or target-list players
 function findThreat() {
-  return bot.nearestEntity(entity => {
+  return bot.nearestEntity((entity) => {
     if (entity.kind !== 'Hostile mobs' && !targetList.includes(entity.username)) return false;
-
     const distBot = entity.position.distanceTo(bot.entity.position);
     if (distBot < 8) return true;
-
-    if (!guardedPlayer?.entity) return false;
+    if (!guardedPlayer || !guardedPlayer.entity) return false;
     const distPlayer = entity.position.distanceTo(guardedPlayer.entity.position);
     return distPlayer < 16;
   });
 }
 
+// Find attackers close to a position
 function findAttacker(position = bot.entity.position) {
-  return bot.nearestEntity(e =>
+  return bot.nearestEntity((e) =>
     !bossList.includes(e.username) && e.position.distanceTo(position) < 5
   );
 }
 
-// EAT FOOD
+// Auto-eat food
 async function eatFood(log = sendMessage) {
   if (isEating || bot.food === 20) return log(isEating ? 'already eating' : 'too full to eat');
   isEating = true;
-
   try {
     for (const food of bot.registry.foodsArray) {
       const count = bot.inventory.count(food.id);
@@ -109,7 +99,7 @@ async function eatFood(log = sendMessage) {
   }
 }
 
-// ATTACK LOGIC
+// Attack an enemy with melee or archery
 async function attackEnemy(enemy) {
   if (!enemy?.isValid || enemy.health <= 0) return;
 
@@ -120,10 +110,8 @@ async function attackEnemy(enemy) {
     sendMessage(`Could not path to enemy: ${err.message}`);
     return;
   }
-
   if (!enemy?.isValid) return;
 
-  // 70% chance melee if close, else bow if available
   if (bot.archery?.canShoot() && Math.random() > 0.3) {
     await bot.archery.shoot(enemy);
   } else {
@@ -132,19 +120,36 @@ async function attackEnemy(enemy) {
   }
 }
 
-// MAIN LOOP
-async function guardLoop() {
-  let broadcastCounter = 0;
+// === BOSS SELECTION ===
+async function pickBossWhenReady() {
+  while (!guardedPlayer) {
+    const onlineCandidates = bossList
+      .map(name => bot.players[name])
+      .filter(p => p); // player object exists
 
+    if (onlineCandidates.length > 0) {
+      const candidate = onlineCandidates[Math.floor(Math.random() * onlineCandidates.length)];
+      guardedPlayer = candidate;
+
+      // wait until their entity exists
+      while (!guardedPlayer.entity) {
+        await bot.waitForTicks(5);
+      }
+
+      bot.chat(`👀 I have found ${guardedPlayer.username} and will follow them!`);
+      sendMessage(`👀 Now following ${guardedPlayer.username}`);
+      break;
+    }
+
+    await bot.waitForTicks(20);
+  }
+}
+
+// === MAIN LOOP ===
+async function guardLoop() {
   while (true) {
     await bot.waitForTicks(1);
     if (!guarding) continue;
-
-    broadcastCounter++;
-    if (broadcastCounter >= 100) { // every ~5 seconds
-      broadcastFollow();
-      broadcastCounter = 0;
-    }
 
     const enemy = findThreat();
     if (enemy) {
@@ -162,7 +167,7 @@ async function guardLoop() {
   }
 }
 
-// COMMANDS
+// === COMMANDS ===
 bot.commands = {
   continue: async () => { guarding = true; },
   eat: async ({ log }) => { await eatFood(log); },
@@ -170,12 +175,6 @@ bot.commands = {
     const player = bot.players[username];
     if (!player) return log(`Player "${username}" not found.`);
     guardedPlayer = player;
-
-    // announce in chat and console
-    if (guardedPlayer.username) {
-      bot.chat(`👀 I am now following ${guardedPlayer.username}!`);
-      sendMessage(`👀 Now following ${guardedPlayer.username}`);
-    }
   },
   ping: async ({ log }) => { log('pong'); },
   status: async ({ log }) => { log(`HEALTH: ${bot.health} HUNGER: ${bot.food}`); },
@@ -183,45 +182,42 @@ bot.commands = {
     log('Stopping guard mode.');
     guarding = false;
     bot.pathfinder.setGoal(null);
-  },
-
-  // hidden internal broadcast
-  _broadcastFollow: async () => { broadcastFollow(); },
+  }
 };
 
-// RUN COMMANDS
+// Run a command
 async function runCommand(tokens, user, log) {
   const fn = bot.commands[tokens[0]];
   if (!fn) return log('Unknown command.');
   await fn(...tokens.slice(1), { user, log });
 }
 
-// EVENTS
+// === EVENTS ===
 process.on('message', (data) => {
   if (data.type === 'command') {
     runCommand(data.command, 'admin', sendMessage);
   }
 });
 
+// === SPAWN ===
 bot.once('spawn', async () => {
-  sendMessage('🛡️ Bot spawned.');
-
+  sendMessage('Bot spawned.');
   const mcData = require('minecraft-data')(bot.version);
   defaultMove = new Movements(bot, mcData);
   defaultMove.canDig = false;
   bot.pathfinder.setMovements(defaultMove);
 
-  // make doors walkable
   ['oak_door','spruce_door','birch_door','acacia_door','dark_oak_door','iron_door']
     .forEach((door) => {
       const block = mcData.blocksByName[door];
       if (block) defaultMove.walkableBlocks?.add(block.id);
     });
 
-  // auto-start main loop
+  await pickBossWhenReady(); // Pick a boss before starting main loop
   guardLoop();
 });
 
+// Chat and whisper command handling
 bot.on('chat', async (username, message) => {
   if (!bossList.includes(username)) return;
   const tokens = message.split(' ');
@@ -234,6 +230,7 @@ bot.on('whisper', async (username, message) => {
   await runCommand(tokens, username, (text) => bot.whisper(username, text));
 });
 
+// Auto-eat
 bot.on('health', async () => {
   if (bot.food <= HUNGER_LIMIT) {
     sendMessage(`Hunger low: ${bot.food}`);
@@ -241,12 +238,15 @@ bot.on('health', async () => {
   }
 });
 
+// Add attackers to target list
 bot.on('entityHurt', (entity) => {
-  const attacked = entity === bot.entity || (guardedPlayer?.entity && entity === guardedPlayer.entity);
+  let attacked = entity === bot.entity || (guardedPlayer?.entity && entity === guardedPlayer.entity);
   if (attacked) {
     sendMessage(`${entity.username ?? 'entity'} was hurt!`);
     const attacker = findAttacker();
-    if (attacker && !targetList.includes(attacker.username)) targetList.push(attacker.username);
+    if (attacker && !targetList.includes(attacker.username)) {
+      targetList.push(attacker.username);
+    }
   }
 });
 
@@ -256,7 +256,7 @@ bot.on('entityGone', (entity) => {
 });
 
 bot.on('respawn', async () => {
-  sendMessage('🌀 Respawned.');
+  sendMessage('Respawned.');
   if (guardedPlayer?.username) {
     bot.chat(`/tp ${bot.username} ${guardedPlayer.username}`);
   }
