@@ -181,6 +181,17 @@ bot.commands = {
     log('Stopping guard mode.');
     guarding = false;
     bot.pathfinder.setGoal(null);
+  },
+  tp: async (targetName, { log }) => {
+    const player = bot.players[targetName];
+    if (!player || !player.entity) return log(`Player "${targetName}" not found or not online.`);
+    try {
+      const goal = new goals.GoalFollow(player.entity, 1);
+      await bot.pathfinder.goto(goal);
+      log(`Teleported to ${targetName}.`);
+    } catch (err) {
+      log(`Teleport failed: ${err.message}`);
+    }
   }
 };
 
