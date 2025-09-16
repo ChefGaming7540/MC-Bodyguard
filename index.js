@@ -120,7 +120,7 @@ const COMMANDS = {
     @botName <command>       - Send command to bot
     ping                     - Test manager responsiveness
     help                     - Show this message
-  @botname kill            - Kills the bot`);
+    @botname kill            - Kills the bot`);
   }
 };
 
