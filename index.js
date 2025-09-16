@@ -11,7 +11,7 @@ const readline = require('readline');
 const CONFIG = {
   host: 'ChefsKitchen.aternos.me',
   port: 61563,
-  defaultBotCount: 5,  // Auto-spawn count on startup
+  defaultBotCount: 1,  // Auto-spawn count on startup
   spawnDelay: 5000,    // Delay between spawns (ms)
   autoRespawn: true,   // Recreate bot if it exits
   defaultName: 'Chef_Bot'
