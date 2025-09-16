@@ -151,6 +151,29 @@ function inputLoop() {
   });
 }
 
+// === CHAT MESSAGE HANDLER ===
+function handleChatMessage(msg) {
+  // Example: "Chef_Bot tp Steve"
+  const tpRegex = /^([\w-]+)\s+tp\s+(\w+)$/i;
+  const match = msg.match(tpRegex);
+  if (match) {
+    const botName = match[1];
+    const targetName = match[2];
+    const bot = bots.get(botName);
+    if (bot) {
+      bot.send({ type: 'command', command: ['tp', targetName] });
+      logInfo(`Sent teleport command to ${botName} to tp to ${targetName}`);
+    } else {
+      logWarn(`No bot named "${botName}" for tp command.`);
+    }
+  }
+}
+
+// Listen for chat messages from stdin (simulate chat input)
+rl.on('line', (line) => {
+  handleChatMessage(line);
+});
+
 async function main() {
   if (CONFIG.defaultBotCount > 0) {
     await spawnBots(CONFIG.defaultBotCount);
