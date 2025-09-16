@@ -93,7 +93,7 @@ async function eatFood(log = sendMessage) {
       break;
     }
   } catch (err) {
-    log(`🍽️ Eating error: ${err.message}`);
+    log(`Eating error: ${err.message}`);
   } finally {
     isEating = false;
   }
@@ -136,8 +136,8 @@ async function pickBossWhenReady() {
         await bot.waitForTicks(5);
       }
 
-      bot.chat(`👀 I have found ${guardedPlayer.username} and will follow them!`);
-      sendMessage(`👀 Now following ${guardedPlayer.username}`);
+      bot.chat(`I have found ${guardedPlayer.username} and will follow them!`);
+      sendMessage(`Now following ${guardedPlayer.username}`);
       break;
     }
 
