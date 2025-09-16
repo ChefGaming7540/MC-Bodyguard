@@ -12,7 +12,7 @@ const CONFIG = {
   host: 'ChefsKitchen.aternos.me',
   port: 61563,
   defaultBotCount: 20,  // Auto-spawn count on startup
-  spawnDelay: 50000,    // Delay between spawns (ms)
+  spawnDelay: 5000,    // Delay between spawns (ms)
   autoRespawn: true,   // Recreate bot if it exits
   defaultName: 'Chef_Bot'
 };
