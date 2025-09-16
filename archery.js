@@ -1,45 +1,65 @@
 const hawkeye = require('minecrafthawkeye');
 
-function hasArrows(bot) {
-	let arrowItem = bot.registry.itemsByName['arrow'];
-	let arrows = bot.inventory.count(arrowItem.id);
+async function equipBow(bot) {
+    const bowItem = bot.inventory.items().find(i => i.name === 'bow');
+    if (!bowItem) return false;
 
-	return arrows > 0;
+    try {
+        await bot.equip(bowItem, 'hand');
+        return true;
+    } catch (err) {
+        bot.emit("customLog", `⚠ Failed to equip bow: ${err.message}`);
+        return false;
+    }
+}
+
+function hasArrows(bot) {
+    const arrowItem = bot.registry.itemsByName['arrow'];
+    return bot.inventory.count(arrowItem.id) > 0;
 }
 
 function hasBow(bot) {
-	let bowItem = bot.registry.itemsByName['bow'];
-	return bot.inventory.count(bowItem.id) > 0;
+    const bowItem = bot.registry.itemsByName['bow'];
+    return bot.inventory.count(bowItem.id) > 0;
 }
 
 async function shoot(bot, target) {
-	await bot.hawkEye.oneShot(target, "bow");
-};
+    if (!target || !target.isValid) return;
+    if (!bot.archery.canShoot()) return;
 
-module.exports = (bot)=>{
-	bot.loadPlugin(hawkeye.default);
-	bot.archery = {};
+    const equipped = await equipBow(bot);
+    if (!equipped) return;
 
-	bot.archery.canShoot = ()=>{
-		return hasArrows(bot) && hasBow(bot);
-	};
+    try {
+        await bot.hawkEye.oneShot(target, "bow");
+        bot.emit("customLog", `🏹 Shot fired at ${target.displayName ?? target.username ?? "target"}`);
+    } catch (err) {
+        bot.emit("customLog", `⚠ Failed to shoot: ${err.message}`);
+    }
+}
 
-	bot.archery.hasArrows = ()=>{
-		return hasArrows(bot);
-	};
+module.exports = (bot) => {
+    bot.loadPlugin(hawkeye.default);
+    bot.archery = {};
 
-	bot.archery.hasBow = ()=>{
-		return hasBow(bot);
-	};
+    bot.archery.canShoot = () => {
+        return hasArrows(bot) && hasBow(bot);
+    };
 
-	bot.archery.shoot = async (target)=>{
-		await shoot(bot, target);
-	};
+    bot.archery.hasArrows = () => hasArrows(bot);
+    bot.archery.hasBow = () => hasBow(bot);
 
-	bot.commands.shoot = async (targetName, { log })=>{
-		const target = bot.getEntity(targetName);
+    bot.archery.shoot = async (target) => {
+        // fire-and-forget so combat loop doesn't block
+        shoot(bot, target);
+    };
 
-		if (target) bot.archery.shoot(target);
-		else log(`Couldn't find ${targetName}.`);
-	};
+    bot.commands.shoot = async (targetName, { log }) => {
+        const target = bot.getEntity(targetName);
+        if (target) {
+            await shoot(bot, target);
+        } else {
+            log(`Couldn't find ${targetName}.`);
+        }
+    };
 };

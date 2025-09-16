@@ -1,25 +1,25 @@
-// Some of these are wrong.
+// console-colors.js
+const wrap = (code) => (text) => `\x1b[${code}m${text}\x1b[0m`;
 
 module.exports = {
-    RESET: '\x1b[0m',
-    
-    cyan: '\x1b[36m%s\x1b[0m',
-    purple: '\x1b[35m%s\x1b[0m',
-    blue: '\x1b[34m%s\x1b[0m',
-    yellow: '\x1b[33m%s\x1b[0m',
-    green: '\x1b[32m%s\x1b[0m',
-    red: '\x1b[31m%s\x1b[0m',
-    gray: '\x1b[90m%s\x1b[0m',
-    magenta: '\x1b[95m%s\x1b[0m',
-    pink: '\x1b[95m%s\x1b[0m',
-    orange: '\x1b[33m%s\x1b[0m',
-    white: '\x1b[37m%s\x1b[0m',
-    black: '\x1b[30m%s\x1b[0m',
-    brightRed: '\x1b[91m%s\x1b[0m',
-    brightGreen: '\x1b[92m%s\x1b[0m',
-    brightYellow: '\x1b[93m%s\x1b[0m',
-    brightBlue: '\x1b[94m%s\x1b[0m',
-    brightMagenta: '\x1b[95m%s\x1b[0m',
-    brightCyan: '\x1b[96m%s\x1b[0m',
-    brightWhite: '\x1b[97m%s\x1b[0m'
+  reset: wrap(0),
+  cyan: wrap(36),
+  purple: wrap(35),
+  blue: wrap(34),
+  yellow: wrap(33),
+  green: wrap(32),
+  red: wrap(31),
+  gray: wrap(90),
+  magenta: wrap(95),
+  pink: wrap(95),
+  orange: wrap(33),
+  white: wrap(37),
+  black: wrap(30),
+  brightRed: wrap(91),
+  brightGreen: wrap(92),
+  brightYellow: wrap(93),
+  brightBlue: wrap(94),
+  brightMagenta: wrap(95),
+  brightCyan: wrap(96),
+  brightWhite: wrap(97),
 };
